@@ -1,19 +1,37 @@
 defmodule Retry do
   use Application
 
-  # See http://elixir-lang.org/docs/stable/elixir/Application.html
-  # for more information on OTP Applications
   def start(_type, _args) do
     import Supervisor.Spec, warn: false
 
     children = [
-      # Define workers and child supervisors to be supervised
-      # worker(Retry.Worker, [arg1, arg2, arg3])
     ]
 
-    # See http://elixir-lang.org/docs/stable/elixir/Supervisor.html
-    # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Retry.Supervisor]
     Supervisor.start_link(children, opts)
+  end
+
+
+  def run(fun, opts = %{} \\ %{}) do
+    opts = Map.merge(%{tries: 10, sleep: 100}, opts)
+    opts = Map.put(opts, :cnt, 0)
+    exec(fun, opts)
+  end
+
+  defp exec(fun, opts = %{tries: tries, cnt: cnt, sleep: sleep}, _ \\ nil) when tries > cnt do
+    result = try do
+        {:ok, fun.()}
+      catch err, msg -> {:failed, {:error, err, msg}}
+      rescue exception -> {:failed, {:exception, exception}}
+    end
+    case result do
+      {:ok, res} -> res
+      {:failed, thing} ->
+        receive do after sleep -> :ok end
+        exec(fun, %{opts | cnt: cnt + 1}, thing)
+    end
+  end
+  defp exec(_, opts = %{cnt: cnt}, error) do
+    %{state: :failed, attempts: cnt, error: error}
   end
 end
