@@ -12,7 +12,7 @@ defmodule Retry do
   end
 
 
-  def run(fun, opts = %{} \\ %{}) do
+  def run(opts = %{} \\ %{}, fun) when is_function(fun) do
     opts = Map.merge(%{tries: 10, sleep: 100}, opts)
     opts = Map.put(opts, :cnt, 0)
     exec(fun, opts)
@@ -25,13 +25,13 @@ defmodule Retry do
       rescue exception -> {:failed, {:exception, exception}}
     end
     case result do
-      {:ok, res} -> res
+      {:ok, res} -> {:ok, res}
       {:failed, thing} ->
         receive do after sleep -> :ok end
         exec(fun, %{opts | cnt: cnt + 1}, thing)
     end
   end
   defp exec(_, opts = %{cnt: cnt}, error) do
-    %{state: :failed, attempts: cnt, error: error}
+    {:error, %{state: :failed, attempts: cnt, error: error}}
   end
 end
