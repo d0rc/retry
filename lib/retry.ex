@@ -18,7 +18,8 @@ defmodule Retry do
     exec(fun, opts)
   end
 
-  defp exec(fun, opts = %{tries: tries, cnt: cnt, sleep: sleep}, _ \\ nil) when tries > cnt do
+  defp exec(_, _, _ \\ nil)
+  defp exec(fun, opts = %{tries: tries, cnt: cnt, sleep: sleep}, _) when tries > cnt do
     result = try do
         {:ok, fun.()}
       catch err, msg -> {:failed, {:error, err, msg}}
